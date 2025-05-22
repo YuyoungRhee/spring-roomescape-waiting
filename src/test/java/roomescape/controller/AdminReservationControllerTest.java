@@ -6,11 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static roomescape.TestFixture.DEFAULT_DATE;
 import static roomescape.TestFixture.createAdminMember;
 import static roomescape.TestFixture.createDefaultReservationTime;
+import static roomescape.TestFixture.createDefaultReservation_1;
 import static roomescape.TestFixture.createDefaultTheme;
-import static roomescape.TestFixture.createDefaultWaiting_1;
 
 import io.restassured.RestAssured;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,14 +21,14 @@ import org.springframework.test.context.ActiveProfiles;
 import roomescape.DBHelper;
 import roomescape.DatabaseCleaner;
 import roomescape.auth.JwtTokenProvider;
-import roomescape.controller.request.CreateReservationAdminRequest;
-import roomescape.controller.response.ReservationResponse;
+import roomescape.controller.dto.request.CreateReservationAdminRequest;
+import roomescape.controller.dto.response.BookingResponse;
 import roomescape.domain.Member;
 import roomescape.domain.Reservation;
 import roomescape.domain.ReservationTime;
 import roomescape.domain.Theme;
 import roomescape.domain.repository.ReservationRepository;
-import roomescape.service.result.MemberResult;
+import roomescape.service.dto.result.MemberResult;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -61,35 +60,13 @@ class AdminReservationControllerTest {
     }
 
     @Test
-    @DisplayName("대기 예약 목록을 조회한다")
-    void getWaitingReservations() {
-        // given
-        Member admin = createAdminMember();
-        dbHelper.insertMember(admin);
-        String token = jwtTokenProvider.createToken(MemberResult.from(admin));
-        Reservation waiting = createDefaultWaiting_1();
-        dbHelper.insertReservation(waiting);
-
-        // when & then
-        List<ReservationResponse> responses = given().log().all()
-                .cookie("token", token)
-                .when()
-                .get("/admin/reservations/waitings")
-                .then().log().all()
-                .statusCode(HttpStatus.OK.value())
-                .extract().jsonPath().getList(".", ReservationResponse.class);
-
-        assertThat(responses).hasSize(1);
-    }
-
-    @Test
     @DisplayName("관리자가 예약을 생성한다")
     void createReservation() {
         // given
         Member admin = createAdminMember();
         ReservationTime reservationTime = createDefaultReservationTime();
         Theme theme = createDefaultTheme();
-        dbHelper.prepareForReservation(admin, reservationTime, theme);
+        dbHelper.prepareForBooking(admin, reservationTime, theme);
 
         String token = jwtTokenProvider.createToken(MemberResult.from(admin));
 
@@ -101,7 +78,7 @@ class AdminReservationControllerTest {
         );
 
         // when & then
-        ReservationResponse response = given().log().all()
+        BookingResponse response = given().log().all()
                 .cookie("token", token)
                 .contentType("application/json")
                 .body(request)
@@ -110,11 +87,11 @@ class AdminReservationControllerTest {
                 .then().log().all()
                 .statusCode(HttpStatus.CREATED.value())
                 .extract()
-                .as(ReservationResponse.class);
+                .as(BookingResponse.class);
 
         assertAll(
                 () -> assertThat(response.id()).isNotNull(),
-                () -> assertThat(response.member().id()).isEqualTo(admin.getId())
+                () -> assertThat(response.memberName()).isEqualTo(admin.getName())
         );
     }
 
@@ -125,8 +102,8 @@ class AdminReservationControllerTest {
         Member admin = createAdminMember();
         dbHelper.insertMember(admin);
         String token = jwtTokenProvider.createToken(MemberResult.from(admin));
-        Reservation waiting = createDefaultWaiting_1();
-        dbHelper.insertReservation(waiting);
+        Reservation reservation = createDefaultReservation_1();
+        dbHelper.insertReservation(reservation);
 
         // when & then
         given().log().all()

@@ -12,9 +12,8 @@ import roomescape.domain.repository.ReservationRepository;
 import roomescape.domain.repository.ReservationTimeRepository;
 import roomescape.domain.repository.ThemeRepository;
 import roomescape.exception.NotFoundException;
-import roomescape.exception.UnAvailableReservationException;
-import roomescape.service.param.CreateReservationParam;
-import roomescape.service.result.ReservationResult;
+import roomescape.service.dto.param.CreateBookingParam;
+import roomescape.service.dto.result.ReservationResult;
 
 @Service
 @Transactional(readOnly = true)
@@ -26,7 +25,8 @@ public class ReservationCreationService {
     private final ReservationTimeRepository reservationTimeRepository;
     private final ReservationPolicy reservationPolicy;
 
-    public ReservationCreationService(ReservationRepository reservationRepository, MemberRepository memberRepository,
+    public ReservationCreationService(ReservationRepository reservationRepository,
+                                      MemberRepository memberRepository,
                                       ThemeRepository themeRepository,
                                       ReservationTimeRepository reservationTimeRepository,
                                       ReservationPolicy reservationPolicy) {
@@ -38,10 +38,10 @@ public class ReservationCreationService {
     }
 
     @Transactional
-    public ReservationResult create(CreateReservationParam param) {
-        ReservationComponents components = loadContext(param);
-        Reservation reservation = Reservation.createNew(
-                components.member, param.date(), components.reservationTime, components.theme);
+    public ReservationResult create(CreateBookingParam param) {
+        ReservationComponents components = loadComponents(param);
+        Reservation reservation = Reservation.create(
+                components.member, param.date(), components.time, components.theme);
         validateCanReservation(reservation);
         reservationRepository.save(reservation);
 
@@ -54,29 +54,7 @@ public class ReservationCreationService {
         reservationPolicy.validateReservationAvailable(reservation, existsDuplicateReservation);
     }
 
-    @Transactional
-    public ReservationResult createWaiting(CreateReservationParam param) {
-        ReservationComponents components = loadContext(param);
-        Reservation reservation = Reservation.createWaiting(
-                components.member, param.date(), components.reservationTime, components.theme);
-        validateCanWaiting(reservation);
-        reservationRepository.save(reservation);
-
-        return ReservationResult.from(reservation);
-    }
-
-    private void validateCanWaiting(Reservation reservation) {
-        boolean exists = reservationRepository.hasAlreadyReservedOrWaited
-                (reservation.getMember().getId(),
-                reservation.getTheme().getId(),
-                reservation.getTime().getId(),
-                reservation.getDate());
-        if (exists) {
-            throw new UnAvailableReservationException("이미 동일한 시간에 예약(또는 대기)이 존재합니다.");
-        }
-    }
-
-    private ReservationComponents loadContext(CreateReservationParam param) {
+    private ReservationComponents loadComponents(CreateBookingParam param) {
         ReservationTime reservationTime = reservationTimeRepository.findById(param.timeId())
                 .orElseThrow(() -> new NotFoundException("timeId", param.timeId()));
         Theme theme = themeRepository.findById(param.themeId())
@@ -87,6 +65,6 @@ public class ReservationCreationService {
         return new ReservationComponents(member, theme, reservationTime);
     }
 
-    private record ReservationComponents(Member member, Theme theme, ReservationTime reservationTime) {
+    private record ReservationComponents(Member member, Theme theme, ReservationTime time) {
     }
 }

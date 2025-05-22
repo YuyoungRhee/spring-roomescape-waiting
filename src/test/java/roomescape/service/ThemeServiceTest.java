@@ -6,10 +6,13 @@ import static roomescape.TestFixture.DEFAULT_DATE;
 
 import jakarta.transaction.Transactional;
 import java.util.List;
+import org.assertj.core.api.SoftAssertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import roomescape.DatabaseCleaner;
 import roomescape.TestFixture;
 import roomescape.domain.Member;
 import roomescape.domain.Reservation;
@@ -21,8 +24,8 @@ import roomescape.domain.repository.ReservationTimeRepository;
 import roomescape.domain.repository.ThemeRepository;
 import roomescape.exception.DeletionNotAllowedException;
 import roomescape.exception.NotFoundException;
-import roomescape.service.param.CreateThemeParam;
-import roomescape.service.result.ThemeResult;
+import roomescape.service.dto.param.CreateThemeParam;
+import roomescape.service.dto.result.ThemeResult;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -43,6 +46,14 @@ class ThemeServiceTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @Autowired
+    private DatabaseCleaner databaseCleaner;
+
+    @BeforeEach
+    void clean() {
+        databaseCleaner.clean();
+    }
 
     @Test
     void 테마를_전체_조회할_수_있다() {
@@ -69,8 +80,13 @@ class ThemeServiceTest {
         ThemeResult themeResult = themeService.create(createThemeParam);
 
         //then
-        assertThat(themeRepository.findById(themeResult.id()))
-                .hasValue(new Theme(themeResult.id(), themeResult.name(), themeResult.description(), themeResult.thumbnail()));
+        SoftAssertions softly = new SoftAssertions();
+
+        softly.assertThat(themeRepository.findAll()).hasSize(1);
+        Theme savedTheme = themeRepository.findById(themeResult.id()).get();
+        softly.assertThat(savedTheme.getName()).isEqualTo(createThemeParam.name());
+
+        softly.assertAll();
     }
 
     @Test

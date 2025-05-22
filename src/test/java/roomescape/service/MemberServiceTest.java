@@ -14,9 +14,9 @@ import roomescape.domain.MemberRole;
 import roomescape.domain.repository.MemberRepository;
 import roomescape.exception.NotFoundException;
 import roomescape.exception.UnAuthorizedException;
-import roomescape.service.param.LoginMemberParam;
-import roomescape.service.param.RegisterMemberParam;
-import roomescape.service.result.MemberResult;
+import roomescape.service.dto.param.LoginMemberParam;
+import roomescape.service.dto.param.RegisterMemberParam;
+import roomescape.service.dto.result.MemberResult;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -74,12 +74,14 @@ class MemberServiceTest {
         Member member = memberRepository.save(TestFixture.createDefaultMember());
 
         //when & then
-        assertThat(memberService.getById(member.getId())).isEqualTo(new MemberResult(1L, member.getName(), MemberRole.USER, member.getEmail()));
+        assertThat(memberService.getById(member.getId())).isEqualTo(MemberResult.from(member));
     }
 
     @Test
     void id를_통해_멤버를_찾으려_할_때_해당하는_id의_멤버가_존재하지_않으면_예외() {
-        assertThatThrownBy(() -> memberService.getById(1L))
+        Long noExistId = 999L;
+
+        assertThatThrownBy(() -> memberService.getById(noExistId))
                 .isInstanceOf(NotFoundException.class);
     }
 }
